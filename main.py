@@ -115,11 +115,18 @@ async def health_check():
     }
 
 if __name__ == "__main__":
-    uvicorn.run(
+    import uvicorn
+    def run_server():
+        uvicorn.run(
         "main:app",
         host=settings.host,
         port=settings.port,
         reload=settings.debug,
         log_level="info"
-    )
+            )
+    # run_server()
+    server_thread = threading.Thread(target=run_server)
+    server_thread.start()
+    server_thread.join()
+
     
