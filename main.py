@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 import logging
 import uvicorn
 from datetime import datetime
-
+ 
 from config.settings import settings
 from controllers import stock_controller, market_controller, broker_controller,nse_controller
 from middleware.logging_middleware import LoggingMiddleware
