@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+yfinance
+pandas
+pydantic
+pydantic-settings
+python-multipart
+
+nse
+dhanhq
+pandas
+NorenRestApi
+pyotp
+python-dotenv
+nse
