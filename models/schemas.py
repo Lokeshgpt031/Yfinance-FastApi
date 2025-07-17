@@ -42,7 +42,17 @@ class CompanyInfoSchema(BaseModel):
     beta: Optional[float] = None
     revenue: Optional[float] = None
     profit_margin: Optional[float] = None
+    bookValue:Optional[float]=None
+    priceToBook:Optional[float]=None
+    quickRatio:Optional[float]=None
+    debtToEquity:Optional[float]=None
 
+class MultipleInfoResponse(BaseModel):
+    stocks: List[Dict[str, CompanyInfoSchema]]
+    total_stocks: int
+    successful_requests: int
+    failed_requests: int
+    
 class HistoricalDataSchema(BaseModel):
     symbol: str
     period: str

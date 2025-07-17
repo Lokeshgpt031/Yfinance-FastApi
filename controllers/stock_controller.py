@@ -3,7 +3,7 @@ from typing import List
 import logging
 
 from models.schemas import (
-    StockPriceSchema, CompanyInfoSchema, HistoricalDataSchema,
+    MultipleInfoResponse, StockPriceSchema, CompanyInfoSchema, HistoricalDataSchema,
     FinancialsSchema, DividendsSchema, StockSplitSchema,
     RecommendationSchema, EarningsSchema, MultipleStocksResponse,
     BaseResponse, ErrorResponse, TrendingStocksResponse
@@ -48,14 +48,15 @@ async def get_company_info(
         logger.error(f"Unexpected error in get_company_info: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
     
-@router.get("/multiple_info/{symbol}", response_model=List[CompanyInfoSchema])
+@router.get("/multiple_info/{symbols}", response_model=MultipleInfoResponse)
 async def get_company_info(
-    symbol: str,
+    symbols: str,
     stock_service: StockService = Depends(get_stock_service)
 ):
     """Get detailed company information"""
     try:
-        return await stock_service.get_company_info(symbol)
+        listSymbols=symbols.split(",")
+        return await stock_service.get_multiple_company_info(listSymbols)
     except StockAPIException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:

@@ -85,20 +85,29 @@ class BrokerService:
         df = self.fetch_holdings()
         quotes = df['quote'].tolist()
 
+        # Fetch multiple stock prices and company info concurrently
         stock_price_map = await self.stock_service.get_multiple_stocks(quotes)
-        
+        company_info_response = await self.stock_service.get_multiple_company_info(quotes)
+
+        # Convert response to dictionary for easy lookup
+        company_info_map = {
+            list(item.keys())[0]: list(item.values())[0]
+            for item in company_info_response.stocks
+        }
+
         enriched = []
         for _, row in df.iterrows():
             quote = row['quote']
             base_data = row.to_dict()
 
             price_data = next((s for s in stock_price_map['trending_stocks'] if s['symbol'] == quote), {})
-            info_data = await self.stock_service.get_company_info(quote)
+            info_data = company_info_map.get(quote, {})
 
             base_data['price'] = price_data
             base_data['info'] = info_data
             enriched.append(base_data)
 
         return enriched
+
 
 

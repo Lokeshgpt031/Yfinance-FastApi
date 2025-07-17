@@ -8,7 +8,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from models.schemas import (
-    StockPriceSchema, CompanyInfoSchema, HistoricalDataSchema,
+    MultipleInfoResponse, StockPriceSchema, CompanyInfoSchema, HistoricalDataSchema,
     FinancialsSchema, DividendsSchema, StockSplitSchema,
     RecommendationSchema, EarningsSchema
 )
@@ -134,64 +134,128 @@ class StockService:
         except Exception as e:
             logger.error(f"Error fetching data for {symbol}: {str(e)}")
             return {'symbol': symbol, 'error': str(e)}
-
-    def _fetch_company_info(self, symbol: str) -> Dict[str, Any]:
+    def _fetch_company_info(self, symbol: str) -> CompanyInfoSchema:
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
-            return {
-                "symbol": symbol,
-                "name": safe_get(info, "longName", safe_get(info, "shortName", "")),
-                "sector": safe_get(info, "sector", ""),
-                "industry": safe_get(info, "industry", ""),
-                "website": safe_get(info, "website", ""),
-                "description": safe_get(info, "longBusinessSummary", "")
-            }
+            
+            return CompanyInfoSchema(
+                symbol=symbol,
+                name=safe_get(info, "longName", safe_get(info, "shortName", "")),
+                sector=info.get("sector"),
+                industry=info.get("industry"),
+                country=info.get("country"),
+                website=info.get("website"),
+                business_summary=info.get("longBusinessSummary"),
+                market_cap=info.get("marketCap"),
+                employees=info.get("fullTimeEmployees"),
+                dividend_yield=info.get("dividendYield"),
+                pe_ratio=info.get("trailingPE"),
+                beta=info.get("beta"),
+                revenue=info.get("totalRevenue"),
+                profit_margin=info.get("profitMargins"),
+                bookValue=info.get("bookValue"),
+                priceToBook=info.get("priceToBook"),
+                quickRatio=info.get("quickRatio"),
+                debtToEquity=info.get("debtToEquity"),
+            )
         except Exception as e:
             logger.error(f"Failed to fetch company info for {symbol}: {str(e)}")
-            return {"symbol": symbol, "error": str(e)}
+            return CompanyInfoSchema(
+                symbol=symbol,
+                name="",
+                business_summary=f"Error: {str(e)}"
+            )
 
     async def get_company_info(self, symbol: str) -> Dict[str, Any]:
         symbol = validate_symbol(symbol)
         cache_key = self._get_cache_key(symbol, "company_info")
-
+        
         cached = self._get_from_cache(cache_key)
         if cached:
             return cached
-
+        
         loop = asyncio.get_event_loop()
         future = loop.run_in_executor(self.executor, self._fetch_company_info, symbol)
         result = await asyncio.wait_for(future, timeout=settings.timeout_seconds)
+        
+        # Convert CompanyInfoSchema to dict for caching and return
+        result_dict = result.model_dump() if hasattr(result, 'model_dump') else result.__dict__
+        self._set_cache(cache_key, result_dict)
+        return result_dict
 
-        self._set_cache(cache_key, result)
-        return result
-
-    async def get_multiple_company_info(self, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
+    async def get_multiple_company_info(self, symbols: List[str]) -> MultipleInfoResponse:
         validated = [validate_symbol(s) for s in symbols]
-
+        
         loop = asyncio.get_event_loop()
         tasks = []
-
+        
         for symbol in validated:
             cache_key = self._get_cache_key(symbol, "company_info")
             cached = self._get_from_cache(cache_key)
             if cached:
-                tasks.append(asyncio.create_task(asyncio.sleep(0, result=cached)))
+                # Create a coroutine that returns the cached result
+                async def return_cached(cached_data=cached):
+                    return cached_data
+                tasks.append(return_cached())
             else:
                 task = loop.run_in_executor(self.executor, self._fetch_company_info, symbol)
                 tasks.append(asyncio.wait_for(task, timeout=settings.timeout_seconds))
-
+        
         results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        result_map = {}
+        
+        stocks: List[Dict[str, CompanyInfoSchema]] = []
+        success_count = 0
+        failure_count = 0
+        
         for symbol, res in zip(validated, results):
-            if isinstance(res, dict):
-                result_map[symbol] = res
-                self._set_cache(self._get_cache_key(symbol, "company_info"), res)
-            else:
-                result_map[symbol] = {"symbol": symbol, "error": str(res)}
-
-        return result_map
+            try:
+                if isinstance(res, CompanyInfoSchema):
+                    # Direct schema object from _fetch_company_info
+                    stocks.append({symbol: res})
+                    success_count += 1
+                    # Cache the result
+                    result_dict = res.model_dump() if hasattr(res, 'model_dump') else res.__dict__
+                    self._set_cache(self._get_cache_key(symbol, "company_info"), result_dict)
+                elif isinstance(res, dict):
+                    # Cached result - convert to schema
+                    schema = CompanyInfoSchema(**res)
+                    stocks.append({symbol: schema})
+                    success_count += 1
+                elif isinstance(res, Exception):
+                    # Exception occurred
+                    error_schema = CompanyInfoSchema(
+                        symbol=symbol,
+                        name="",
+                        business_summary=f"Error: {str(res)}"
+                    )
+                    stocks.append({symbol: error_schema})
+                    failure_count += 1
+                else:
+                    # Unexpected result type
+                    error_schema = CompanyInfoSchema(
+                        symbol=symbol,
+                        name="",
+                        business_summary=f"Error: Unexpected result type: {type(res)}"
+                    )
+                    stocks.append({symbol: error_schema})
+                    failure_count += 1
+            except Exception as e:
+                # Error processing result
+                error_schema = CompanyInfoSchema(
+                    symbol=symbol,
+                    name="",
+                    business_summary=f"Error processing result: {str(e)}"
+                )
+                stocks.append({symbol: error_schema})
+                failure_count += 1
+        
+        return MultipleInfoResponse(
+            stocks=stocks,
+            total_stocks=len(symbols),
+            successful_requests=success_count,
+            failed_requests=failure_count
+        )
 
     async def get_historical_data(self, symbol: str, period: Period, interval: Interval) -> HistoricalDataSchema:
         """Get historical stock data"""
