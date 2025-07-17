@@ -2,7 +2,9 @@ import os
 from pydantic import Field
 from pydantic_settings import BaseSettings
 from typing import List
+from dotenv import load_dotenv
 
+load_dotenv()
 class Settings(BaseSettings):
     app_name: str = "Stock Market API"
     app_version: str = "1.0.0"
