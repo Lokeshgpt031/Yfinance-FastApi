@@ -1,3 +1,4 @@
+import threading
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -39,10 +40,10 @@ app.add_middleware(
 app.add_middleware(LoggingMiddleware)
 
 # Include routers
-app.include_router(stock_controller.router)
-app.include_router(market_controller.router)
-app.include_router(broker_controller.router)
-app.include_router(nse_controller.router)
+app.include_router(stock_controller.router,prefix="/api")
+app.include_router(market_controller.router,prefix="/api")
+app.include_router(broker_controller.router,prefix="/api")
+app.include_router(nse_controller.router,prefix="/api")
 
 # Global exception handler
 @app.exception_handler(StockAPIException)
@@ -114,19 +115,28 @@ async def health_check():
         "uptime": "active"
     }
 
+# if __name__ == "__main__":
+#     import uvicorn
+#     def run_server():
+#         uvicorn.run(
+#         "main:app",
+#         host=settings.host,
+#         port=settings.port,
+#         reload=settings.debug,
+#         log_level="info"
+#             )
+#     # run_server()
+#     server_thread = threading.Thread(target=run_server)
+#     server_thread.start()
+#     server_thread.join()
 if __name__ == "__main__":
-    import uvicorn
-    def run_server():
-        uvicorn.run(
+    uvicorn.run(
         "main:app",
         host=settings.host,
         port=settings.port,
         reload=settings.debug,
         log_level="info"
-            )
-    # run_server()
-    server_thread = threading.Thread(target=run_server)
-    server_thread.start()
-    server_thread.join()
+    )
+    
 
     
