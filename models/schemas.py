@@ -113,3 +113,10 @@ class HistoricalDataRequest(BaseModel):
     period: Period = Period.ONE_MONTH
     interval: Interval = Interval.ONE_DAY
 
+
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
+    expires_in: Optional[int] = None

@@ -66,3 +66,18 @@ def calculate_change(current: float, previous: float) -> tuple:
     change_percent = (change / previous) * 100
     
     return round(change, 2), round(change_percent, 2)
+
+
+import re
+
+def prevalidate_credentials(username, password):
+    if not username or not password:
+        return False, "Username or password missing."
+    # Sample regex for simple email format validation
+    email_regex = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    if not re.match(email_regex, username):
+        return False, "Username must be a valid email."
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters."
+    # Add more password strength checks as needed
+    return True, ""

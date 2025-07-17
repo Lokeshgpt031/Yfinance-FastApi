@@ -40,6 +40,7 @@ class MarketService:
         df["ticker"] = df["ticker"].astype(str) + ".NS"
         df.to_csv(MarketService.CSV_PATH, index=False)
         print("✅ NSE stock list saved.")
+        logger.info("initialize_csv is successful")
         MarketService.df = pd.read_csv(MarketService.CSV_PATH)
 
     @staticmethod
