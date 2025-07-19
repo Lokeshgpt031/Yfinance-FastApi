@@ -13,3 +13,9 @@ pyotp
 python-dotenv
 nse
 NorenRestApi==0.0.32
+azure-storage-blob
+azure-identity
+azure-ai-documentintelligence
+groq
+agno
+duckduckgo-search
